@@ -64,6 +64,7 @@ void httpHeaderLinkAdd(const char* _url)
   char*            linkP = link;
   char*            url;
   unsigned int     urlLen;
+  unsigned int     urlBufLen;
   bool             freeLinkP = false;
 
   if (orionldState.linkHeaderAdded == true)
@@ -92,9 +93,10 @@ void httpHeaderLinkAdd(const char* _url)
   }
 
   urlLen = strlen(url);
-  if (urlLen + LINK_REL_AND_TYPE_SIZE + 5 > sizeof(link))
+  urlBufLen = urlLen + LINK_REL_AND_TYPE_SIZE + 5;
+  if (urlBufLen > sizeof(link))
   {
-    linkP = (char*) malloc(urlLen + LINK_REL_AND_TYPE_SIZE + 5);
+    linkP = (char*) malloc(urlBufLen);
     if (linkP == NULL)
     {
       LM_E(("Out-of-memory allocating roome for HTTP Link Header"));
@@ -103,7 +105,12 @@ void httpHeaderLinkAdd(const char* _url)
     freeLinkP = true;
   }
 
-  sprintf(linkP, "<%s>; %s", url, LINK_REL_AND_TYPE);
+  if ((unsigned int)snprintf(linkP, urlBufLen, "<%s>; %s", url, LINK_REL_AND_TYPE) >= urlBufLen)
+  {
+    LM_E(("Cannot add URL with > INT_MAX"));
+    free(linkP);
+    return;
+  }
 
   orionldHeaderAdd(&orionldState.out.headers, HttpLink, linkP, 0);
 
