@@ -92,6 +92,15 @@ void httpHeaderLinkAdd(const char* _url)
   }
 
   urlLen = strlen(url);
+
+  // make sure we don't sprintf() more than INT_MAX chars
+  // (which is what sprintf() can handle)
+  if (urlLen + LINK_REL_AND_TYPE_SIZE + 5 > INT_MAX)
+  {
+    LM_E(("Cannot add URL with > INT_MAX"));
+    return;
+  }
+
   if (urlLen + LINK_REL_AND_TYPE_SIZE + 5 > sizeof(link))
   {
     linkP = (char*) malloc(urlLen + LINK_REL_AND_TYPE_SIZE + 5);
