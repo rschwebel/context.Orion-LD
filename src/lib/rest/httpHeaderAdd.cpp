@@ -103,6 +103,14 @@ void httpHeaderLinkAdd(const char* _url)
     freeLinkP = true;
   }
 
+  if (urlLen + LINK_REL_AND_TYPE_SIZE + 5 > INT_MAX)
+  {
+    LM_E(("Cannot add URL with > INT_MAX"));
+    if (freeLinkP == true)
+      free(linkP);
+    return;
+  }
+
   sprintf(linkP, "<%s>; %s", url, LINK_REL_AND_TYPE);
 
   orionldHeaderAdd(&orionldState.out.headers, HttpLink, linkP, 0);
