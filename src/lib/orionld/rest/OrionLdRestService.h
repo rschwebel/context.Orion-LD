@@ -151,6 +151,8 @@ typedef struct OrionLdRestServiceSimplifiedVector
 #define ORIONLD_URIPARAM_OBSERVEDAT           (UINT64_C(1) << 33)
 #define ORIONLD_URIPARAM_LANG                 (UINT64_C(1) << 34)
 #define ORIONLD_URIPARAM_LOCAL                (UINT64_C(1) << 35)
+#define ORIONLD_URIPARAM_RESET                (UINT64_C(1) << 36)
+#define ORIONLD_URIPARAM_LEVEL                (UINT64_C(1) << 37)
 
 
 
