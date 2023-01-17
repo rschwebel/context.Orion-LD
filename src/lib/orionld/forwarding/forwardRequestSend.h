@@ -33,6 +33,6 @@
 //
 // forwardRequestSend -
 //
-extern bool forwardRequestSend(ForwardPending* fwdPendingP, const char* dateHeader);
+extern bool forwardRequestSend(ForwardPending* fwdPendingP, const char* dateHeader, const char* xForwardedForHeader);
 
 #endif  // SRC_LIB_ORIONLD_FORWARDING_FORWARDREQUESTSEND_H_

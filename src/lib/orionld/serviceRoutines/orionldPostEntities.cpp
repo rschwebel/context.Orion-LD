@@ -61,10 +61,8 @@ extern "C"
 #include "orionld/forwarding/fwdPendingLookupByCurlHandle.h"     // fwdPendingLookupByCurlHandle
 #include "orionld/forwarding/regMatchForEntityCreation.h"        // regMatchForEntityCreation
 #include "orionld/forwarding/forwardingListsMerge.h"             // forwardingListsMerge
+#include "orionld/forwarding/xForwardedForCompose.h"             // xForwardedForCompose
 #include "orionld/serviceRoutines/orionldPostEntities.h"         // Own interface
-
-
-
 
 
 
@@ -175,14 +173,18 @@ bool orionldPostEntities(void)
     fwdPendingList = forwardingListsMerge(exclusiveList, redirectList);
     fwdPendingList = forwardingListsMerge(fwdPendingList, inclusiveList);
 
+    // Enqueue all forwarded requests
     if (fwdPendingList != NULL)
     {
+      // Now that we've found all matching registrations we can add ourselves to the X-forwarded-For header
+      char* xff = xForwardedForCompose(orionldState.in.xForwardedFor, localIpAndPort);
+
       for (ForwardPending* fwdPendingP = fwdPendingList; fwdPendingP != NULL; fwdPendingP = fwdPendingP->next)
       {
         // Send the forwarded request and await all responses
         if (fwdPendingP->regP != NULL)
         {
-          if (forwardRequestSend(fwdPendingP, dateHeader) == 0)
+          if (forwardRequestSend(fwdPendingP, dateHeader, xff) == 0)
           {
             ++forwards;
             fwdPendingP->error = false;
@@ -215,9 +217,12 @@ bool orionldPostEntities(void)
           }
         }
 
-        if ((++loops >= 10) && ((loops % 5) == 0))
+        if ((++loops >= 50) && ((loops % 25) == 0))
           LM_W(("curl_multi_perform doesn't seem to finish ... (%d loops)", loops));
       }
+
+      if (loops >= 100)
+        LM_W(("curl_multi_perform finally finished!   (%d loops)", loops));
 
       // Anything left for a local entity?
       if (orionldState.requestTree->value.firstChildP != NULL)
@@ -231,12 +236,6 @@ bool orionldPostEntities(void)
       else
         orionldState.requestTree = NULL;  // Meaning: nothing left for local DB
     }
-
-    //
-    // After sending all forwarded requests, we let the local DB access run
-    // After that is done (if anything left for local DB),
-    //   we select on the reponses and build the answer
-    //
   }
 
 
@@ -245,7 +244,7 @@ bool orionldPostEntities(void)
   //
   if (orionldState.requestTree != NULL)
   {
-    if (mongocEntityLookup(entityId, NULL, NULL) != NULL)
+    if (mongocEntityLookup(entityId, NULL, NULL, NULL) != NULL)
     {
       if (fwdPendingList == NULL)  // Purely local request
       {

@@ -128,7 +128,7 @@ char* urlCompose(ForwardUrlParts* urlPartsP, KjNode* endpointP)
   int totalLen = 0;
 
   //
-  // Calculating the length of the resulting URL
+  // Calculating the length of the resulting URL (PATH+PARAMS)
   //
   totalLen += strlen(endpointP->value.s);
   totalLen += fwdOperationUrlLen[urlPartsP->fwdPendingP->operation];
@@ -138,6 +138,7 @@ char* urlCompose(ForwardUrlParts* urlPartsP, KjNode* endpointP)
   if (urlPartsP->fwdPendingP->attrName != NULL)
     totalLen += strlen(urlPartsP->fwdPendingP->attrName) + 1;  // +1: the '/' after "/attrs" and before the attrName
 
+  // Adding the lengths of the uri params
   for (SList* paramP = urlPartsP->params; paramP != NULL; paramP = paramP->next)
   {
     totalLen += paramP->sLen + 1;  // +1: Either '?' or '&'
@@ -322,7 +323,7 @@ void attrsParam(OrionldContext* contextP, ForwardUrlParts* urlPartsP, StringArra
 //
 // forwardRequestSend -
 //
-bool forwardRequestSend(ForwardPending* fwdPendingP, const char* dateHeader)
+bool forwardRequestSend(ForwardPending* fwdPendingP, const char* dateHeader, const char* xForwardedForHeader)
 {
   //
   // Figure out the @context to use for the forwarded request
@@ -385,9 +386,15 @@ bool forwardRequestSend(ForwardPending* fwdPendingP, const char* dateHeader)
 
     //
     // Forwarded requests are ALWAYS sent with options=sysAttrs  (normalized is already default - no need to add that)
-    // They MUST be sent with NOEMALIZED and SYSATTRS, as with out that, there's no way to pick attributes in case we have clashes
+    // They MUST be sent with NORMALIZED and SYSATTRS, as without that, there's no way to pick attributes in case we have clashes
     //
     uriParamAdd(&urlParts, "options=sysAttrs", NULL, 16);
+
+    //
+    // If we know the Entity Type, we pass that piece of information as well
+    //
+    if (fwdPendingP->entityType != NULL)
+      uriParamAdd(&urlParts, "type", fwdPendingP->entityType, -1);
   }
 
   if (orionldState.uriParams.lang != NULL)
@@ -408,6 +415,7 @@ bool forwardRequestSend(ForwardPending* fwdPendingP, const char* dateHeader)
   // - Content-Type
   // - User-Agent
   // - Date
+  // - X-Forwarded-For
   // - Those in csourceInfo (if Content-Type is present, it is ignored (for now))
   // - NGSILD-Tenant (part of registration, but can also be in csourceInfo?)
   // - Link - can be in csourceInfo (named jsonldContext)
@@ -421,6 +429,9 @@ bool forwardRequestSend(ForwardPending* fwdPendingP, const char* dateHeader)
 
   // Host
   headers = curl_slist_append(headers, hostHeader);
+
+  // X-Forwarded-For
+  headers = curl_slist_append(headers, xForwardedForHeader);
 
   // Custom headers from Registration::contextSourceInfo
   char* infoTenant    = NULL;
@@ -598,7 +609,7 @@ bool forwardRequestSend(ForwardPending* fwdPendingP, const char* dateHeader)
   }
 
 
-//
+  //
   // Need to save the pointer to the curl headers in order to free it afterwards
   //
   fwdPendingP->curlHeaders = headers;
