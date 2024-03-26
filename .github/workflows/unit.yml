@@ -2,6 +2,7 @@ name: Unit Test
 
 on:
   pull_request:
+  workflow_dispatch:
 
 env:
   IMAGE_NAME: localhost:5000/orion-ld-test:latest
